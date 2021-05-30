@@ -1,0 +1,145 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<!--
+3 Replace com.test.game with the identifier of your game below, e.g.
+4     com.gamemaker.game
+5-->
+6<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+7    package="org.libsdl.app"
+8    android:installLocation="auto"
+9    android:versionCode="1"
+10    android:versionName="1.0" >
+11
+12    <uses-sdk
+13        android:minSdkVersion="16"
+13-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml
+14        android:targetSdkVersion="26" />
+14-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml
+15
+16    <!-- OpenGL ES 2.0 -->
+17    <uses-feature android:glEsVersion="0x00020000" />
+17-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:12:5-54
+17-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:12:19-51
+18
+19    <!-- Touchscreen support -->
+20    <uses-feature
+20-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:15:5-17:36
+21        android:name="android.hardware.touchscreen"
+21-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:16:9-52
+22        android:required="false" />
+22-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:17:9-33
+23
+24    <!-- Game controller support -->
+25    <uses-feature
+25-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:20:5-22:36
+26        android:name="android.hardware.bluetooth"
+26-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:21:9-50
+27        android:required="false" />
+27-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:22:9-33
+28    <uses-feature
+28-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:23:5-25:36
+29        android:name="android.hardware.gamepad"
+29-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:24:9-48
+30        android:required="false" />
+30-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:25:9-33
+31    <uses-feature
+31-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:26:5-28:36
+32        android:name="android.hardware.usb.host"
+32-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:27:9-49
+33        android:required="false" />
+33-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:28:9-33
+34
+35    <!-- External mouse input events -->
+36    <uses-feature
+36-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:31:5-33:36
+37        android:name="android.hardware.type.pc"
+37-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:32:9-48
+38        android:required="false" />
+38-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:33:9-33
+39
+40    <!-- Audio recording support -->
+41    <!-- if you want to capture audio, uncomment this. -->
+42    <!--
+43         <uses-feature
+44        android:name="android.hardware.microphone"
+45        android:required="false" />
+46    -->
+47
+48
+49    <!-- Allow writing to external storage -->
+50    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+50-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:42:5-81
+50-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:42:22-78
+51    <!-- Allow access to Bluetooth devices -->
+52    <uses-permission android:name="android.permission.BLUETOOTH" />
+52-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:44:5-68
+52-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:44:22-65
+53    <!-- Allow access to the vibrator -->
+54    <uses-permission android:name="android.permission.VIBRATE" />
+54-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:46:5-66
+54-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:46:22-63
+55
+56    <!-- if you want to capture audio, uncomment this. -->
+57    <!-- <uses-permission android:name="android.permission.RECORD_AUDIO" /> -->
+58    <!--
+59 Create a Java class extending SDLActivity and place it in a
+60         directory under app/src/main/java matching the package, e.g. app/src/main/java/com/gamemaker/game/MyGame.java
+61 
+62         then replace "SDLActivity" with the name of your class (e.g. "MyGame")
+63         in the XML below.
+64
+65         An example Java class can be found in README-android.md
+66    -->
+67    <application
+67-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:59:5-88:19
+68        android:allowBackup="true"
+68-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:61:9-35
+69        android:debuggable="true"
+70        android:hardwareAccelerated="true"
+70-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:63:9-43
+71        android:icon="@mipmap/ic_launcher"
+71-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:60:9-43
+72        android:label="@string/app_name"
+72-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:59:18-50
+73        android:testOnly="true"
+74        android:theme="@android:style/Theme.NoTitleBar.Fullscreen" >
+74-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:62:9-67
+75
+76        <!--
+77        Example of setting SDL hints from AndroidManifest.xml:
+78        <meta-data android:name="SDL_ENV.SDL_ACCELEROMETER_AS_JOYSTICK" android:value="0"/>
+79        -->
+80
+81        <activity
+81-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:69:9-87:20
+82            android:name="org.libsdl.app.SDLActivity"
+82-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:69:19-45
+83            android:alwaysRetainTaskState="true"
+83-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:71:13-49
+84            android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
+84-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:73:13-133
+85            android:label="@string/app_name"
+85-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:70:13-45
+86            android:launchMode="singleInstance" >
+86-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:72:13-48
+87            <intent-filter>
+87-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:75:13-78:29
+88                <action android:name="android.intent.action.MAIN" />
+88-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:76:17-69
+88-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:76:25-66
+89
+90                <category android:name="android.intent.category.LAUNCHER" />
+90-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:77:17-77
+90-->C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:77:27-74
+91            </intent-filter>
+92            <!-- Drop file event -->
+93            <!--
+94            <intent-filter>
+95                <action android:name="android.intent.action.VIEW" />
+96                <category android:name="android.intent.category.DEFAULT" />
+97                <data android:mimeType="*/*" />
+98            </intent-filter>
+99            -->
+100        </activity>
+101    </application>
+102
+103</manifest>
