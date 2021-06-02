@@ -351,6 +351,16 @@ struct Figure {
 	SDL_Color c{ FIGURE_COLOR };
 };
 
+bool operator==(SDL_Color left, SDL_Color right)
+{
+	return left.r == right.r && left.g == right.g && left.b == right.b && left.a == right.a;
+}
+
+bool operator!=(SDL_Color left, SDL_Color right)
+{
+	return left.r != right.r || left.g != right.g || left.b != right.b || left.a != right.a;
+}
+
 int main(int argc, char* argv[])
 {
 	/*
@@ -409,38 +419,38 @@ int main(int argc, char* argv[])
 	}
 	std::vector<Figure> figures;
 	figures.push_back(Figure());
-	figures.back().r.w = 16;
-	figures.back().r.h = 16;
+	figures.back().r.w = CELL_SIZE;
+	figures.back().r.h = CELL_SIZE;
 	figures.back().r.x = 0;
 	figures.back().r.y = windowHeight - figures.back().r.h;
 	figures.push_back(Figure());
-	figures.back().r.w = 16;
-	figures.back().r.h = 16;
+	figures.back().r.w = CELL_SIZE;
+	figures.back().r.h = CELL_SIZE;
 	figures.back().r.x = figures[0].r.x + figures[0].r.w + 5;
 	figures.back().r.y = windowHeight - figures.back().r.h;
 	figures.push_back(Figure());
-	figures.back().r.w = 16;
-	figures.back().r.h = 32;
+	figures.back().r.w = CELL_SIZE;
+	figures.back().r.h = CELL_SIZE * 2;
 	figures.back().r.x = figures[1].r.x + figures[1].r.w + 5;
 	figures.back().r.y = windowHeight - figures.back().r.h;
 	figures.push_back(Figure());
-	figures.back().r.w = 16;
-	figures.back().r.h = 32;
-	figures.back().r.x = figures[2].r.x + figures[2].r.w + 5;
+	figures.back().r.w = CELL_SIZE;
+	figures.back().r.h = CELL_SIZE * 2;
+	figures.back().r.x = figures[2].r.x + figures[2].r.w * 2 + 5;
 	figures.back().r.y = windowHeight - figures.back().r.h;
 	figures.push_back(Figure());
-	figures.back().r.w = 16;
-	figures.back().r.h = 48;
+	figures.back().r.w = CELL_SIZE;
+	figures.back().r.h = CELL_SIZE * 3;
 	figures.back().r.x = figures[3].r.x + figures[3].r.w + 5;
 	figures.back().r.y = windowHeight - figures.back().r.h;
 	figures.push_back(Figure());
-	figures.back().r.w = 16;
-	figures.back().r.h = 64;
+	figures.back().r.w = CELL_SIZE;
+	figures.back().r.h = CELL_SIZE * 4;
 	figures.back().r.x = figures[4].r.x + figures[4].r.w + 5;
 	figures.back().r.y = windowHeight - figures.back().r.h;
 	figures.push_back(Figure());
-	figures.back().r.w = 16;
-	figures.back().r.h = 80;
+	figures.back().r.w = CELL_SIZE;
+	figures.back().r.h = CELL_SIZE * 5;
 	figures.back().r.x = figures[5].r.x + figures[5].r.w + 5;
 	figures.back().r.y = windowHeight - figures.back().r.h;
 	SDL_Rect rotateBtnR;
@@ -449,6 +459,8 @@ int main(int argc, char* argv[])
 	rotateBtnR.x = windowWidth - rotateBtnR.w;
 	rotateBtnR.y = windowHeight - rotateBtnR.h;
 	SDL_Texture* rotateT = IMG_LoadTexture(renderer, "res/rotate.png");
+	int selectedFigureIndex = -1;
+	bool rotated = false;
 	while (running) {
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
@@ -473,6 +485,7 @@ int main(int argc, char* argv[])
 						figures[i].r.w = figures[i].r.h;
 						figures[i].r.h = tmp;
 					}
+					rotated = !rotated;
 				}
 				for (int i = 0; i < figures.size(); ++i) {
 					figures[i].c = { FIGURE_COLOR };
@@ -480,11 +493,124 @@ int main(int argc, char* argv[])
 				for (int i = 0; i < figures.size(); ++i) {
 					if (SDL_PointInRect(&mousePos, &figures[i].r)) {
 						figures[i].c = { 255,255,0,0 };
+						selectedFigureIndex = i;
 					}
 				}
-				for (int i = 0; i < board.size(); ++i) {
-					if (SDL_PointInRect(&mousePos, &board[i].r)) {
-						board[i].c = { FIGURE_COLOR };
+				if (selectedFigureIndex != -1) {
+					for (int i = 0; i < board.size(); ++i) {
+						if (SDL_PointInRect(&mousePos, &board[i].r)) {
+							if (board[i].c != SDL_Color({ FIGURE_COLOR })) {
+								int size = std::max(figures[selectedFigureIndex].r.w, figures[selectedFigureIndex].r.h) / CELL_SIZE;
+								int row = i / 10;
+								int col = i % 10;
+								bool figureColor = false;
+								if (!rotated) {
+									int size = std::max(figures[selectedFigureIndex].r.w, figures[selectedFigureIndex].r.h) / CELL_SIZE;
+									bool shouldPlaceShip = true;
+									if (((row + size - 1) * 10) + col < board.size()) {
+										for (int i = 0; i < size; ++i) {
+											int index = (row + i) * 10 + col;
+											if (board[index].c == SDL_Color({ FIGURE_COLOR })) {
+												shouldPlaceShip = false;
+												break;
+											}
+										}
+									}
+									else {
+										int leftCellsToFill = size;
+										for (int i = 0; i < size; ++i) {
+											int index = (row + i) * 10 + col;
+											if (index >= board.size()) {
+												break;
+											}
+											if (board[index].c == SDL_Color{ FIGURE_COLOR }) {
+												shouldPlaceShip = false;
+												break;
+											}
+											--leftCellsToFill;
+										}
+										if (shouldPlaceShip) {
+											for (int i = 0; i < leftCellsToFill; ++i) {
+												int index = (row - (i + 1)) * 10 + col;
+												if (board[index].c == SDL_Color{ FIGURE_COLOR }) {
+													shouldPlaceShip = false;
+													break;
+												}
+											}
+										}
+									}
+									if (shouldPlaceShip) {
+										// NOTE: If it will go out of border than reverse the direction
+										if (((row + size - 1) * 10) + col < board.size()) {
+											for (int i = 0; i < size; ++i) {
+												int index = (row + i) * 10 + col;
+												board[index].c = { FIGURE_COLOR };
+											}
+										}
+										else {
+											// NOTE: Go as much as possible down and than go up to fill rest from size
+											int leftCellsToFill = size;
+											for (int i = 0; i < size; ++i) {
+												int index = (row + i) * 10 + col;
+												if (index >= board.size()) {
+													break;
+												}
+												board[index].c = { FIGURE_COLOR };
+												--leftCellsToFill;
+											}
+											for (int i = 0; i < leftCellsToFill; ++i) {
+												int index = (row - (i + 1)) * 10 + col;
+												board[index].c = { FIGURE_COLOR };
+											}
+										}
+										figures.erase(figures.begin() + selectedFigureIndex);
+										selectedFigureIndex = -1;
+									}
+								}
+								else {
+									int size = std::max(figures[selectedFigureIndex].r.w, figures[selectedFigureIndex].r.h) / CELL_SIZE;
+									bool shouldPlaceShip = true;
+									int leftCellsToFill = size;
+									for (int i = 0; i < size; ++i) {
+										int index = row * 10 + (col + i);
+										int newRow = index / 10;
+										if (row == newRow) {
+											if (board[index].c == SDL_Color{ FIGURE_COLOR }) {
+												shouldPlaceShip = false;
+												break;
+											}
+											--leftCellsToFill;
+										}
+									}
+									if (shouldPlaceShip) {
+										for (int i = 0; i < leftCellsToFill; ++i) {
+											int index = row * 10 + (col - (i + 1));
+											if (board[index].c == SDL_Color{ FIGURE_COLOR }) {
+												shouldPlaceShip = false;
+											}
+										}
+									}
+									if (shouldPlaceShip) {
+										int leftCellsToFill = size;
+										for (int i = 0; i < size; ++i) {
+											int index = row * 10 + (col + i);
+											int newRow = index / 10;
+											if (row == newRow) {
+												board[index].c = { FIGURE_COLOR };
+												--leftCellsToFill;
+											}
+										}
+										for (int i = 0; i < leftCellsToFill; ++i) {
+											int index = row * 10 + (col - (i + 1));
+											board[index].c = { FIGURE_COLOR };
+										}
+										figures.erase(figures.begin() + selectedFigureIndex);
+										selectedFigureIndex = -1;
+									}
+								}
+							}
+							break;
+						}
 					}
 				}
 			}
