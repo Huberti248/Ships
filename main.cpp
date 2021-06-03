@@ -11,6 +11,9 @@
 #include <cmath>
 #include <ctime>
 #include <cstdlib>
+#include <cstdint>
+#include <cstring>
+#include <cwchar>
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
@@ -52,6 +55,17 @@ using namespace std::chrono_literals;
 #define BG_COLOR 100,100,100,0
 #define FIGURE_COLOR 0,255,0,0
 #define CELL_SIZE 16
+#define MAX_SOCKETS 65534
+#define SERVER_PORT 8020
+
+#define u8 uint8_t
+#define u16 uint16_t
+#define u32 uint32_t
+#define u64 uint64_t
+#define i8 int8_t
+#define i16 int16_t
+#define i32 int32_t
+#define i64 int64_t
 
 int windowWidth = 240;
 int windowHeight = 320;
@@ -361,6 +375,113 @@ bool operator!=(SDL_Color left, SDL_Color right)
 	return left.r != right.r || left.g != right.g || left.b != right.b || left.a != right.a;
 }
 
+enum class State {
+	ShipPlacement,
+	WaitForPlayer,
+	Gameplay,
+};
+
+struct WaitForPlayer {
+	Text waitingText;
+};
+
+struct Client {
+	TCPsocket socket = 0;
+	State state = State::ShipPlacement;
+	int gameId = -1;
+};
+
+int genUniqueGameId(const std::vector<Client>& clients)
+{
+	int uniqueGameId = 0;
+genGameIdBegin:
+	for (int i = 0; i < clients.size(); ++i) {
+		if (clients[i].gameId == uniqueGameId) {
+			++uniqueGameId;
+			goto genGameIdBegin;
+		}
+	}
+	return uniqueGameId;
+}
+
+#define MAX_LENGTH 1024
+
+int send(TCPsocket socket, std::string msg)
+{
+	return SDLNet_TCP_Send(socket, msg.c_str(), msg.size() + 1);
+}
+
+int receive(TCPsocket socket, std::string& msg)
+{
+	// TODO: Is it going to work properly ??? What will happen if I will send less than MAX_LENGTH characters?
+	char message[MAX_LENGTH]{};
+	int result = SDLNet_TCP_Recv(socket, message, MAX_LENGTH);
+	msg = message;
+	return result;
+}
+
+void runServer()
+{
+	IPaddress ip;
+	SDLNet_ResolveHost(&ip, 0, SERVER_PORT); // TODO: What to do if this port is already used ???
+	TCPsocket serverSocket = SDLNet_TCP_Open(&ip);
+	SDLNet_SocketSet socketSet = SDLNet_AllocSocketSet(MAX_SOCKETS + 1); // TODO: Do something when the server is full
+	SDLNet_TCP_AddSocket(socketSet, serverSocket);
+	bool running = true;
+	std::vector<Client> clients;
+	while (running) {
+		if (SDLNet_CheckSockets(socketSet, 0) > 0) {
+			if (SDLNet_SocketReady(serverSocket)) {
+				clients.push_back(Client());
+				clients.back().socket = SDLNet_TCP_Accept(serverSocket);
+				SDLNet_TCP_AddSocket(socketSet, clients.back().socket);
+			}
+			for (int i = 0; i < clients.size(); ++i) {
+				if (SDLNet_SocketReady(clients[i].socket)) {
+					std::string msg;
+					int received = receive(clients[i].socket, msg);
+					if (received > 0) {
+						if (msg == "changeState") {
+							clients[i].state = State::WaitForPlayer;
+						}
+						else if (msg == "checkStatus") {
+							if (clients[i].state == State::Gameplay) {
+								send(clients[i].socket, "Gameplay");
+							}
+							else {
+								bool found = false;
+								for (int j = 0; j < clients.size(); ++j) {
+									if (j != i) {
+										if (clients[j].state == State::WaitForPlayer) {
+											clients[i].state = State::Gameplay;
+											clients[i].gameId = genUniqueGameId(clients);
+											clients[j].state = State::Gameplay;
+											clients[j].gameId = clients[i].gameId;
+											send(clients[i].socket, "Gameplay");
+											found = true;
+											break;
+										}
+									}
+								}
+								if (!found) 	{
+									send(clients[i].socket, "WaitForPlayer");
+								}
+							}
+						}
+					}
+					else {
+						/*
+						NOTE:
+							An error may have occured, but sometimes you can just ignore it
+							It may be good to disconnect sock because it is likely invalid now.
+						*/
+					}
+				}
+			}
+		}
+	}
+}
+
 int main(int argc, char* argv[])
 {
 	/*
@@ -373,6 +494,12 @@ int main(int argc, char* argv[])
 	SDL_LogSetOutputFunction(logOutputCallback, 0);
 	SDL_Init(SDL_INIT_EVERYTHING);
 	TTF_Init();
+	SDLNet_Init();
+	std::thread serverThread(runServer);
+	serverThread.detach();
+	IPaddress ip;
+	SDLNet_ResolveHost(&ip, "192.168.1.10", SERVER_PORT); // TODO: Set ip address to public one
+	TCPsocket socket = SDLNet_TCP_Open(&ip); // TODO: Error handling
 	SDL_GetMouseState(&mousePos.x, &mousePos.y);
 	SDL_Window* window = SDL_CreateWindow("Ships", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_RESIZABLE);
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
@@ -382,6 +509,7 @@ int main(int argc, char* argv[])
 	SDL_RenderSetScale(renderer, w / (float)windowWidth, h / (float)windowHeight);
 	SDL_AddEventWatch(eventWatch, 0);
 	bool running = true;
+	State state = State::ShipPlacement;
 	std::vector<Text> hBoardTexts;
 	std::vector<Text> vBoardTexts;
 	std::vector<Cell> board;
@@ -461,191 +589,290 @@ int main(int argc, char* argv[])
 	SDL_Texture* rotateT = IMG_LoadTexture(renderer, "res/rotate.png");
 	int selectedFigureIndex = -1;
 	bool rotated = false;
+	WaitForPlayer wfp;
+	wfp.waitingText.setText(renderer, robotoF, "Searching for players");
+	wfp.waitingText.dstR.w = 200;
+	wfp.waitingText.dstR.h = 30;
+	wfp.waitingText.dstR.x = windowWidth / 2 - wfp.waitingText.dstR.w / 2;
+	wfp.waitingText.dstR.y = windowHeight / 2 - wfp.waitingText.dstR.h / 2;
+	wfp.waitingText.autoAdjustW = true;
+	wfp.waitingText.wMultiplier = 0.25;
 	while (running) {
-		SDL_Event event;
-		while (SDL_PollEvent(&event)) {
-			if (event.type == SDL_QUIT || event.type == SDL_KEYDOWN && event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
-				running = false;
-				// TODO: On mobile remember to use eventWatch function (it doesn't reach this code when terminating)
-			}
-			if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED) {
-				SDL_RenderSetScale(renderer, event.window.data1 / (float)windowWidth, event.window.data2 / (float)windowHeight);
-			}
-			if (event.type == SDL_KEYDOWN) {
-				keys[event.key.keysym.scancode] = true;
-			}
-			if (event.type == SDL_KEYUP) {
-				keys[event.key.keysym.scancode] = false;
-			}
-			if (event.type == SDL_MOUSEBUTTONDOWN) {
-				buttons[event.button.button] = true;
-				if (SDL_PointInRect(&mousePos, &rotateBtnR)) {
+		if (state == State::ShipPlacement) {
+			SDL_Event event;
+			while (SDL_PollEvent(&event)) {
+				if (event.type == SDL_QUIT || event.type == SDL_KEYDOWN && event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+					running = false;
+					// TODO: On mobile remember to use eventWatch function (it doesn't reach this code when terminating)
+				}
+				if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED) {
+					SDL_RenderSetScale(renderer, event.window.data1 / (float)windowWidth, event.window.data2 / (float)windowHeight);
+				}
+				if (event.type == SDL_KEYDOWN) {
+					keys[event.key.keysym.scancode] = true;
+				}
+				if (event.type == SDL_KEYUP) {
+					keys[event.key.keysym.scancode] = false;
+				}
+				if (event.type == SDL_MOUSEBUTTONDOWN) {
+					buttons[event.button.button] = true;
+					if (SDL_PointInRect(&mousePos, &rotateBtnR)) {
+						for (int i = 0; i < figures.size(); ++i) {
+							int tmp = figures[i].r.w;
+							figures[i].r.w = figures[i].r.h;
+							figures[i].r.h = tmp;
+						}
+						rotated = !rotated;
+					}
 					for (int i = 0; i < figures.size(); ++i) {
-						int tmp = figures[i].r.w;
-						figures[i].r.w = figures[i].r.h;
-						figures[i].r.h = tmp;
+						figures[i].c = { FIGURE_COLOR };
 					}
-					rotated = !rotated;
-				}
-				for (int i = 0; i < figures.size(); ++i) {
-					figures[i].c = { FIGURE_COLOR };
-				}
-				for (int i = 0; i < figures.size(); ++i) {
-					if (SDL_PointInRect(&mousePos, &figures[i].r)) {
-						figures[i].c = { 255,255,0,0 };
-						selectedFigureIndex = i;
+					for (int i = 0; i < figures.size(); ++i) {
+						if (SDL_PointInRect(&mousePos, &figures[i].r)) {
+							figures[i].c = { 255,255,0,0 };
+							selectedFigureIndex = i;
+						}
 					}
-				}
-				if (selectedFigureIndex != -1) {
-					for (int i = 0; i < board.size(); ++i) {
-						if (SDL_PointInRect(&mousePos, &board[i].r)) {
-							if (board[i].c != SDL_Color({ FIGURE_COLOR })) {
-								int size = std::max(figures[selectedFigureIndex].r.w, figures[selectedFigureIndex].r.h) / CELL_SIZE;
-								int row = i / 10;
-								int col = i % 10;
-								bool figureColor = false;
-								if (!rotated) {
+					if (selectedFigureIndex != -1) {
+						for (int i = 0; i < board.size(); ++i) {
+							if (SDL_PointInRect(&mousePos, &board[i].r)) {
+								if (board[i].c != SDL_Color({ FIGURE_COLOR })) {
 									int size = std::max(figures[selectedFigureIndex].r.w, figures[selectedFigureIndex].r.h) / CELL_SIZE;
-									bool shouldPlaceShip = true;
-									if (((row + size - 1) * 10) + col < board.size()) {
-										for (int i = 0; i < size; ++i) {
-											int index = (row + i) * 10 + col;
-											if (board[index].c == SDL_Color({ FIGURE_COLOR })) {
-												shouldPlaceShip = false;
-												break;
-											}
-										}
-									}
-									else {
-										int leftCellsToFill = size;
-										for (int i = 0; i < size; ++i) {
-											int index = (row + i) * 10 + col;
-											if (index >= board.size()) {
-												break;
-											}
-											if (board[index].c == SDL_Color{ FIGURE_COLOR }) {
-												shouldPlaceShip = false;
-												break;
-											}
-											--leftCellsToFill;
-										}
-										if (shouldPlaceShip) {
-											for (int i = 0; i < leftCellsToFill; ++i) {
-												int index = (row - (i + 1)) * 10 + col;
-												if (board[index].c == SDL_Color{ FIGURE_COLOR }) {
+									int row = i / 10;
+									int col = i % 10;
+									bool figureColor = false;
+									if (!rotated) {
+										int size = std::max(figures[selectedFigureIndex].r.w, figures[selectedFigureIndex].r.h) / CELL_SIZE;
+										bool shouldPlaceShip = true;
+										if (((row + size - 1) * 10) + col < board.size()) {
+											for (int i = 0; i < size; ++i) {
+												int index = (row + i) * 10 + col;
+												if (board[index].c == SDL_Color({ FIGURE_COLOR })) {
 													shouldPlaceShip = false;
 													break;
 												}
 											}
 										}
-									}
-									if (shouldPlaceShip) {
-										// NOTE: If it will go out of border than reverse the direction
-										if (((row + size - 1) * 10) + col < board.size()) {
-											for (int i = 0; i < size; ++i) {
-												int index = (row + i) * 10 + col;
-												board[index].c = { FIGURE_COLOR };
-											}
-										}
 										else {
-											// NOTE: Go as much as possible down and than go up to fill rest from size
 											int leftCellsToFill = size;
 											for (int i = 0; i < size; ++i) {
 												int index = (row + i) * 10 + col;
 												if (index >= board.size()) {
 													break;
 												}
-												board[index].c = { FIGURE_COLOR };
+												if (board[index].c == SDL_Color{ FIGURE_COLOR }) {
+													shouldPlaceShip = false;
+													break;
+												}
 												--leftCellsToFill;
 											}
-											for (int i = 0; i < leftCellsToFill; ++i) {
-												int index = (row - (i + 1)) * 10 + col;
-												board[index].c = { FIGURE_COLOR };
+											if (shouldPlaceShip) {
+												for (int i = 0; i < leftCellsToFill; ++i) {
+													int index = (row - (i + 1)) * 10 + col;
+													if (board[index].c == SDL_Color{ FIGURE_COLOR }) {
+														shouldPlaceShip = false;
+														break;
+													}
+												}
 											}
 										}
-										figures.erase(figures.begin() + selectedFigureIndex);
-										selectedFigureIndex = -1;
-									}
-								}
-								else {
-									int size = std::max(figures[selectedFigureIndex].r.w, figures[selectedFigureIndex].r.h) / CELL_SIZE;
-									bool shouldPlaceShip = true;
-									int leftCellsToFill = size;
-									for (int i = 0; i < size; ++i) {
-										int index = row * 10 + (col + i);
-										int newRow = index / 10;
-										if (row == newRow) {
-											if (board[index].c == SDL_Color{ FIGURE_COLOR }) {
-												shouldPlaceShip = false;
-												break;
+										if (shouldPlaceShip) {
+											// NOTE: If it will go out of border than reverse the direction
+											if (((row + size - 1) * 10) + col < board.size()) {
+												for (int i = 0; i < size; ++i) {
+													int index = (row + i) * 10 + col;
+													board[index].c = { FIGURE_COLOR };
+												}
 											}
-											--leftCellsToFill;
+											else {
+												// NOTE: Go as much as possible down and than go up to fill rest from size
+												int leftCellsToFill = size;
+												for (int i = 0; i < size; ++i) {
+													int index = (row + i) * 10 + col;
+													if (index >= board.size()) {
+														break;
+													}
+													board[index].c = { FIGURE_COLOR };
+													--leftCellsToFill;
+												}
+												for (int i = 0; i < leftCellsToFill; ++i) {
+													int index = (row - (i + 1)) * 10 + col;
+													board[index].c = { FIGURE_COLOR };
+												}
+											}
+											figures.erase(figures.begin() + selectedFigureIndex);
+											selectedFigureIndex = -1;
 										}
 									}
-									if (shouldPlaceShip) {
-										for (int i = 0; i < leftCellsToFill; ++i) {
-											int index = row * 10 + (col - (i + 1));
-											if (board[index].c == SDL_Color{ FIGURE_COLOR }) {
-												shouldPlaceShip = false;
-											}
-										}
-									}
-									if (shouldPlaceShip) {
+									else {
+										int size = std::max(figures[selectedFigureIndex].r.w, figures[selectedFigureIndex].r.h) / CELL_SIZE;
+										bool shouldPlaceShip = true;
 										int leftCellsToFill = size;
 										for (int i = 0; i < size; ++i) {
 											int index = row * 10 + (col + i);
 											int newRow = index / 10;
 											if (row == newRow) {
-												board[index].c = { FIGURE_COLOR };
+												if (board[index].c == SDL_Color{ FIGURE_COLOR }) {
+													shouldPlaceShip = false;
+													break;
+												}
 												--leftCellsToFill;
 											}
 										}
-										for (int i = 0; i < leftCellsToFill; ++i) {
-											int index = row * 10 + (col - (i + 1));
-											board[index].c = { FIGURE_COLOR };
+										if (shouldPlaceShip) {
+											for (int i = 0; i < leftCellsToFill; ++i) {
+												int index = row * 10 + (col - (i + 1));
+												if (board[index].c == SDL_Color{ FIGURE_COLOR }) {
+													shouldPlaceShip = false;
+												}
+											}
 										}
-										figures.erase(figures.begin() + selectedFigureIndex);
-										selectedFigureIndex = -1;
+										if (shouldPlaceShip) {
+											int leftCellsToFill = size;
+											for (int i = 0; i < size; ++i) {
+												int index = row * 10 + (col + i);
+												int newRow = index / 10;
+												if (row == newRow) {
+													board[index].c = { FIGURE_COLOR };
+													--leftCellsToFill;
+												}
+											}
+											for (int i = 0; i < leftCellsToFill; ++i) {
+												int index = row * 10 + (col - (i + 1));
+												board[index].c = { FIGURE_COLOR };
+											}
+											figures.erase(figures.begin() + selectedFigureIndex);
+											selectedFigureIndex = -1;
+										}
 									}
 								}
+								break;
 							}
-							break;
 						}
 					}
 				}
+				if (event.type == SDL_MOUSEBUTTONUP) {
+					buttons[event.button.button] = false;
+				}
+				if (event.type == SDL_MOUSEMOTION) {
+					float scaleX, scaleY;
+					SDL_RenderGetScale(renderer, &scaleX, &scaleY);
+					mousePos.x = event.motion.x / scaleX;
+					mousePos.y = event.motion.y / scaleY;
+					realMousePos.x = event.motion.x;
+					realMousePos.y = event.motion.y;
+				}
 			}
-			if (event.type == SDL_MOUSEBUTTONUP) {
-				buttons[event.button.button] = false;
+			if (figures.empty()) {
+				state = State::WaitForPlayer;
+				send(socket, "changeState");
 			}
-			if (event.type == SDL_MOUSEMOTION) {
-				float scaleX, scaleY;
-				SDL_RenderGetScale(renderer, &scaleX, &scaleY);
-				mousePos.x = event.motion.x / scaleX;
-				mousePos.y = event.motion.y / scaleY;
-				realMousePos.x = event.motion.x;
-				realMousePos.y = event.motion.y;
+			SDL_SetRenderDrawColor(renderer, BG_COLOR);
+			SDL_RenderClear(renderer);
+			for (int i = 0; i < hBoardTexts.size(); ++i) {
+				hBoardTexts[i].draw(renderer);
 			}
+			for (int i = 0; i < vBoardTexts.size(); ++i) {
+				vBoardTexts[i].draw(renderer);
+			}
+			for (int i = 0; i < board.size(); ++i) {
+				SDL_SetRenderDrawColor(renderer, board[i].c.r, board[i].c.g, board[i].c.b, board[i].c.a);
+				SDL_RenderFillRect(renderer, &board[i].r);
+				SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+				SDL_RenderDrawRect(renderer, &board[i].r);
+			}
+			for (int i = 0; i < figures.size(); ++i) {
+				SDL_SetRenderDrawColor(renderer, figures[i].c.r, figures[i].c.g, figures[i].c.b, figures[i].c.a);
+				SDL_RenderFillRect(renderer, &figures[i].r);
+			}
+			SDL_RenderCopy(renderer, rotateT, 0, &rotateBtnR);
+			SDL_RenderPresent(renderer);
 		}
-		SDL_SetRenderDrawColor(renderer, BG_COLOR);
-		SDL_RenderClear(renderer);
-		for (int i = 0; i < hBoardTexts.size(); ++i) {
-			hBoardTexts[i].draw(renderer);
+		else if (state == State::WaitForPlayer) {
+			SDL_Event event;
+			while (SDL_PollEvent(&event)) {
+				if (event.type == SDL_QUIT || event.type == SDL_KEYDOWN && event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+					running = false;
+					// TODO: On mobile remember to use eventWatch function (it doesn't reach this code when terminating)
+				}
+				if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED) {
+					SDL_RenderSetScale(renderer, event.window.data1 / (float)windowWidth, event.window.data2 / (float)windowHeight);
+				}
+				if (event.type == SDL_KEYDOWN) {
+					keys[event.key.keysym.scancode] = true;
+				}
+				if (event.type == SDL_KEYUP) {
+					keys[event.key.keysym.scancode] = false;
+				}
+				if (event.type == SDL_MOUSEBUTTONDOWN) {
+					buttons[event.button.button] = true;
+				}
+				if (event.type == SDL_MOUSEBUTTONUP) {
+					buttons[event.button.button] = false;
+				}
+				if (event.type == SDL_MOUSEMOTION) {
+					float scaleX, scaleY;
+					SDL_RenderGetScale(renderer, &scaleX, &scaleY);
+					mousePos.x = event.motion.x / scaleX;
+					mousePos.y = event.motion.y / scaleY;
+					realMousePos.x = event.motion.x;
+					realMousePos.y = event.motion.y;
+				}
+			}
+			wfp.waitingText.setText(renderer, robotoF, wfp.waitingText.text + ".");
+			if (wfp.waitingText.text[wfp.waitingText.text.size() - 1] == '.'
+				&& wfp.waitingText.text[wfp.waitingText.text.size() - 2] == '.'
+				&& wfp.waitingText.text[wfp.waitingText.text.size() - 3] == '.'
+				&& wfp.waitingText.text[wfp.waitingText.text.size() - 4] == '.') {
+				wfp.waitingText.setText(renderer, robotoF, "Searching for players");
+			}
+			send(socket, "checkStatus");
+			std::string answer;
+			receive(socket, answer);
+			if (answer == "Gameplay") {
+				state = State::Gameplay;
+			}
+			SDL_SetRenderDrawColor(renderer, BG_COLOR);
+			SDL_RenderClear(renderer);
+			wfp.waitingText.draw(renderer);
+			SDL_RenderPresent(renderer);
+			SDL_Delay(300);
 		}
-		for (int i = 0; i < vBoardTexts.size(); ++i) {
-			vBoardTexts[i].draw(renderer);
+		else if (state == State::Gameplay) {
+			SDL_Event event;
+			while (SDL_PollEvent(&event)) {
+				if (event.type == SDL_QUIT || event.type == SDL_KEYDOWN && event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+					running = false;
+					// TODO: On mobile remember to use eventWatch function (it doesn't reach this code when terminating)
+				}
+				if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED) {
+					SDL_RenderSetScale(renderer, event.window.data1 / (float)windowWidth, event.window.data2 / (float)windowHeight);
+				}
+				if (event.type == SDL_KEYDOWN) {
+					keys[event.key.keysym.scancode] = true;
+				}
+				if (event.type == SDL_KEYUP) {
+					keys[event.key.keysym.scancode] = false;
+				}
+				if (event.type == SDL_MOUSEBUTTONDOWN) {
+					buttons[event.button.button] = true;
+				}
+				if (event.type == SDL_MOUSEBUTTONUP) {
+					buttons[event.button.button] = false;
+				}
+				if (event.type == SDL_MOUSEMOTION) {
+					float scaleX, scaleY;
+					SDL_RenderGetScale(renderer, &scaleX, &scaleY);
+					mousePos.x = event.motion.x / scaleX;
+					mousePos.y = event.motion.y / scaleY;
+					realMousePos.x = event.motion.x;
+					realMousePos.y = event.motion.y;
+				}
+			}
+			SDL_SetRenderDrawColor(renderer, BG_COLOR);
+			SDL_RenderClear(renderer);
+			SDL_RenderPresent(renderer);
 		}
-		for (int i = 0; i < board.size(); ++i) {
-			SDL_SetRenderDrawColor(renderer, board[i].c.r, board[i].c.g, board[i].c.b, board[i].c.a);
-			SDL_RenderFillRect(renderer, &board[i].r);
-			SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-			SDL_RenderDrawRect(renderer, &board[i].r);
-		}
-		for (int i = 0; i < figures.size(); ++i) {
-			SDL_SetRenderDrawColor(renderer, figures[i].c.r, figures[i].c.g, figures[i].c.b, figures[i].c.a);
-			SDL_RenderFillRect(renderer, &figures[i].r);
-		}
-		SDL_RenderCopy(renderer, rotateT, 0, &rotateBtnR);
-		SDL_RenderPresent(renderer);
 	}
 	// TODO: On mobile remember to use eventWatch function (it doesn't reach this code when terminating)
 	return 0;

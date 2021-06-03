@@ -1,8 +1,15 @@
-C:/home/dev/Ships/android/app/jni/src/../../../../main.cpp:467:60: warning: '&&' within '||' [-Wlogical-op-parentheses]
-                        if (event.type == SDL_QUIT || event.type == SDL_KEYDOWN && event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
-                                                   ~~ ~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-C:/home/dev/Ships/android/app/jni/src/../../../../main.cpp:467:60: note: place parentheses around the '&&' expression to silence this warning
-                        if (event.type == SDL_QUIT || event.type == SDL_KEYDOWN && event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
-                                                                                ^
-                                                      (                                                                            )
-1 warning generated.
+C:/home/dev/Ships/android/app/jni/src/../../../../main.cpp:519:61: warning: '&&' within '||' [-Wlogical-op-parentheses]
+                                if (event.type == SDL_QUIT || event.type == SDL_KEYDOWN && event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+                                                           ~~ ~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C:/home/dev/Ships/android/app/jni/src/../../../../main.cpp:519:61: note: place parentheses around the '&&' expression to silence this warning
+                                if (event.type == SDL_QUIT || event.type == SDL_KEYDOWN && event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+                                                                                        ^
+                                                              (                                                                            )
+C:/home/dev/Ships/android/app/jni/src/../../../../main.cpp:708:61: warning: '&&' within '||' [-Wlogical-op-parentheses]
+                                if (event.type == SDL_QUIT || event.type == SDL_KEYDOWN && event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+                                                           ~~ ~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C:/home/dev/Ships/android/app/jni/src/../../../../main.cpp:708:61: note: place parentheses around the '&&' expression to silence this warning
+                                if (event.type == SDL_QUIT || event.type == SDL_KEYDOWN && event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+                                                                                        ^
+                                                              (                                                                            )
+2 warnings generated.
