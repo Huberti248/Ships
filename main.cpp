@@ -1,3 +1,4 @@
+// TODO: Prevent hackers
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -378,17 +379,37 @@ bool operator!=(SDL_Color left, SDL_Color right)
 enum class State {
 	ShipPlacement,
 	WaitForPlayer,
-	Gameplay,
+	YourTurnGameplay,
+	NotYoursTurnGameplay,
 };
 
 struct WaitForPlayer {
 	Text waitingText;
+	bool first = true;
+};
+
+struct YourTurnGameplay {
+	std::vector<Cell> board;
+	std::vector<Text> hBoardTexts;
+	std::vector<Text> vBoardTexts;
+	Text text;
+};
+
+struct NotYoursTurnGameplay {
+	std::vector<Cell> board;
+	std::vector<Text> hBoardTexts;
+	std::vector<Text> vBoardTexts;
+	Text text;
 };
 
 struct Client {
 	TCPsocket socket = 0;
 	State state = State::ShipPlacement;
 	int gameId = -1;
+	bool playerTurn = false;
+	std::vector<Cell> board;
+	std::vector<Cell> opponentBoard;
+	bool gameEnd = false;
 };
 
 int genUniqueGameId(const std::vector<Client>& clients)
@@ -435,17 +456,27 @@ void runServer()
 				clients.push_back(Client());
 				clients.back().socket = SDLNet_TCP_Accept(serverSocket);
 				SDLNet_TCP_AddSocket(socketSet, clients.back().socket);
+				clients.back().board.resize(100);
+				clients.back().opponentBoard.resize(100);
 			}
 			for (int i = 0; i < clients.size(); ++i) {
 				if (SDLNet_SocketReady(clients[i].socket)) {
 					std::string msg;
 					int received = receive(clients[i].socket, msg);
 					if (received > 0) {
-						if (msg == "changeState") {
+						if (msg.size() >= 12 && msg.substr(0, 12) == "changeState ") {
 							clients[i].state = State::WaitForPlayer;
+							std::string indexes = msg.substr(12);
+							std::stringstream ss(indexes);
+							std::string index;
+							while (std::getline(ss, index, ' ')) {
+								int cellIndex = std::stoi(index);
+								clients[i].board[cellIndex].c = { FIGURE_COLOR };
+							}
 						}
 						else if (msg == "checkStatus") {
-							if (clients[i].state == State::Gameplay) {
+							if (clients[i].state == State::YourTurnGameplay) {
+								clients[i].playerTurn = true;
 								send(clients[i].socket, "Gameplay");
 							}
 							else {
@@ -453,19 +484,102 @@ void runServer()
 								for (int j = 0; j < clients.size(); ++j) {
 									if (j != i) {
 										if (clients[j].state == State::WaitForPlayer) {
-											clients[i].state = State::Gameplay;
+											clients[i].state = State::YourTurnGameplay;
 											clients[i].gameId = genUniqueGameId(clients);
-											clients[j].state = State::Gameplay;
+											clients[i].opponentBoard = clients[j].board;
+											clients[j].state = State::YourTurnGameplay;
 											clients[j].gameId = clients[i].gameId;
+											clients[j].opponentBoard = clients[i].board;
 											send(clients[i].socket, "Gameplay");
 											found = true;
 											break;
 										}
 									}
 								}
-								if (!found) 	{
+								if (!found) {
 									send(clients[i].socket, "WaitForPlayer");
 								}
+							}
+						}
+						else if (msg == "checkTurn") {
+							if (clients[i].playerTurn) {
+								send(clients[i].socket, "your");
+							}
+							else {
+								send(clients[i].socket, "notYours");
+							}
+						}
+						else if (msg.size() >= 6 && msg.substr(0, 6) == "pick: ") {
+							int index = std::stoi(msg.substr(6));
+							if (clients[i].opponentBoard[index].c == SDL_Color{ 0,255,0,0 }) {
+								clients[i].opponentBoard[index].c = { 255,0,0 };
+							}
+							else {
+								clients[i].opponentBoard[index].c = { 255,255,255 };
+							}
+							int redCount = 0;
+							for (int j = 0; j < clients[i].opponentBoard.size(); ++j) {
+								if (clients[i].opponentBoard[j].c == SDL_Color({ 255,0,0 })) {
+									++redCount;
+								}
+							}
+							if (redCount == 18) {
+								send(clients[i].socket, "gameEnd");
+								clients[i].state = State::ShipPlacement;
+								for (int j = 0; j < clients.size(); ++j) {
+									if (j != i && clients[j].gameId == clients[i].gameId) {
+										clients[j].gameEnd = true;
+									}
+								}
+								clients[i].board.clear();
+								clients[i].opponentBoard.clear();
+								clients[i].board.resize(100);
+								clients[i].opponentBoard.resize(100);
+							}
+							else {
+								if (clients[i].opponentBoard[index].c == SDL_Color({ 255,0,0 })) {
+									send(clients[i].socket, "hit");
+								}
+								else if (clients[i].opponentBoard[index].c == SDL_Color({ 255,255,255 })) {
+									send(clients[i].socket, "miss");
+									clients[i].playerTurn = !clients[i].playerTurn;
+									for (int j = 0; j < clients.size(); ++j) {
+										if (j != i && clients[j].gameId == clients[i].gameId) {
+											clients[j].playerTurn = !clients[j].playerTurn;
+										}
+									}
+								}
+							}
+						}
+						else if (msg == "isMyTurn") {
+							if (clients[i].gameEnd) {
+								clients[i].gameEnd = false;
+								clients[i].state = State::ShipPlacement;
+								clients[i].board.clear();
+								clients[i].opponentBoard.clear();
+								clients[i].board.resize(100);
+								clients[i].opponentBoard.resize(100);
+								send(clients[i].socket, "gameEnd");
+							}
+							else if (clients[i].playerTurn) {
+								send(clients[i].socket, "yourTurn");
+							}
+							else {
+								std::string indexes;
+								for (int j = 0; j < clients.size(); ++j) {
+									if (j != i && clients[j].gameId == clients[i].gameId) {
+										for (int k = 0; k < clients[j].opponentBoard.size(); ++k) {
+											if (clients[j].opponentBoard[k].c != SDL_Color({ BG_COLOR })) {
+												indexes += std::to_string(k) + " ";
+											}
+										}
+										if (!indexes.empty() && indexes.back() == ' ') {
+											indexes.pop_back();
+										}
+										break;
+									}
+								}
+								send(clients[i].socket, "notYoursTurn " + indexes);
 							}
 						}
 					}
@@ -495,8 +609,10 @@ int main(int argc, char* argv[])
 	SDL_Init(SDL_INIT_EVERYTHING);
 	TTF_Init();
 	SDLNet_Init();
+#ifndef __ANDROID__
 	std::thread serverThread(runServer);
 	serverThread.detach();
+#endif
 	IPaddress ip;
 	SDLNet_ResolveHost(&ip, "192.168.1.10", SERVER_PORT); // TODO: Set ip address to public one
 	TCPsocket socket = SDLNet_TCP_Open(&ip); // TODO: Error handling
@@ -509,6 +625,7 @@ int main(int argc, char* argv[])
 	SDL_RenderSetScale(renderer, w / (float)windowWidth, h / (float)windowHeight);
 	SDL_AddEventWatch(eventWatch, 0);
 	bool running = true;
+gameBegin:
 	State state = State::ShipPlacement;
 	std::vector<Text> hBoardTexts;
 	std::vector<Text> vBoardTexts;
@@ -597,6 +714,24 @@ int main(int argc, char* argv[])
 	wfp.waitingText.dstR.y = windowHeight / 2 - wfp.waitingText.dstR.h / 2;
 	wfp.waitingText.autoAdjustW = true;
 	wfp.waitingText.wMultiplier = 0.25;
+	YourTurnGameplay ytg;
+	ytg.board = board;
+	ytg.hBoardTexts = hBoardTexts;
+	ytg.vBoardTexts = vBoardTexts;
+	ytg.text.setText(renderer, robotoF, "Your turn");
+	ytg.text.dstR.w = 100;
+	ytg.text.dstR.h = 25;
+	ytg.text.dstR.x = windowWidth / 2 - ytg.text.dstR.w / 2;
+	ytg.text.dstR.y = windowHeight - ytg.text.dstR.h - 20;
+	NotYoursTurnGameplay nytg;
+	nytg.board = board;
+	nytg.hBoardTexts = hBoardTexts;
+	nytg.vBoardTexts = vBoardTexts;
+	nytg.text.setText(renderer, robotoF, "Not yours turn");
+	nytg.text.dstR.w = 100;
+	nytg.text.dstR.h = 25;
+	nytg.text.dstR.x = windowWidth / 2 - nytg.text.dstR.w / 2;
+	nytg.text.dstR.y = windowHeight - nytg.text.dstR.h - 20;
 	while (running) {
 		if (state == State::ShipPlacement) {
 			SDL_Event event;
@@ -765,7 +900,17 @@ int main(int argc, char* argv[])
 			}
 			if (figures.empty()) {
 				state = State::WaitForPlayer;
-				send(socket, "changeState");
+				std::vector<int> greenIndexes;
+				for (int i = 0; i < board.size(); ++i) {
+					if (board[i].c == SDL_Color({ 0,255,0,0 })) {
+						greenIndexes.push_back(i);
+					}
+				}
+				std::string indexes = std::to_string(greenIndexes.front());
+				for (int i = 1; i < greenIndexes.size(); ++i) {
+					indexes += " " + std::to_string(greenIndexes[i]);
+				}
+				send(socket, "changeState " + indexes);
 			}
 			SDL_SetRenderDrawColor(renderer, BG_COLOR);
 			SDL_RenderClear(renderer);
@@ -826,19 +971,96 @@ int main(int argc, char* argv[])
 				&& wfp.waitingText.text[wfp.waitingText.text.size() - 4] == '.') {
 				wfp.waitingText.setText(renderer, robotoF, "Searching for players");
 			}
-			send(socket, "checkStatus");
-			std::string answer;
-			receive(socket, answer);
-			if (answer == "Gameplay") {
-				state = State::Gameplay;
+			if (!wfp.first) {
+				send(socket, "checkStatus");
+				std::string answer;
+				receive(socket, answer);
+				if (answer == "Gameplay") {
+					send(socket, "checkTurn");
+					std::string answer;
+					receive(socket, answer);
+					if (answer == "your") {
+						state = State::YourTurnGameplay;
+					}
+					else if (answer == "notYours") {
+						state = State::NotYoursTurnGameplay;
+					}
+				}
 			}
+			wfp.first = false;
 			SDL_SetRenderDrawColor(renderer, BG_COLOR);
 			SDL_RenderClear(renderer);
 			wfp.waitingText.draw(renderer);
 			SDL_RenderPresent(renderer);
 			SDL_Delay(300);
 		}
-		else if (state == State::Gameplay) {
+		else if (state == State::YourTurnGameplay) {
+			SDL_Event event;
+			while (SDL_PollEvent(&event)) {
+				if (event.type == SDL_QUIT || event.type == SDL_KEYDOWN && event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+					running = false;
+					// TODO: On mobile remember to use eventWatch function (it doesn't reach this code when terminating)
+				}
+				if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED) {
+					SDL_RenderSetScale(renderer, event.window.data1 / (float)windowWidth, event.window.data2 / (float)windowHeight);
+				}
+				if (event.type == SDL_KEYDOWN) {
+					keys[event.key.keysym.scancode] = true;
+				}
+				if (event.type == SDL_KEYUP) {
+					keys[event.key.keysym.scancode] = false;
+				}
+				if (event.type == SDL_MOUSEBUTTONDOWN) {
+					buttons[event.button.button] = true;
+					for (int i = 0; i < ytg.board.size(); ++i) {
+						if (SDL_PointInRect(&mousePos, &ytg.board[i].r)) {
+							send(socket, "pick: " + std::to_string(i));
+							std::string answer;
+							receive(socket, answer);
+							if (answer == "gameEnd") {
+								goto gameBegin;
+							}
+							else if (answer == "hit") {
+								ytg.board[i].c = { 255,0,0,0 };
+							}
+							else if (answer == "miss") {
+								ytg.board[i].c = { 255,255,255,0 };
+								state = State::NotYoursTurnGameplay;
+							}
+							break;
+						}
+					}
+				}
+				if (event.type == SDL_MOUSEBUTTONUP) {
+					buttons[event.button.button] = false;
+				}
+				if (event.type == SDL_MOUSEMOTION) {
+					float scaleX, scaleY;
+					SDL_RenderGetScale(renderer, &scaleX, &scaleY);
+					mousePos.x = event.motion.x / scaleX;
+					mousePos.y = event.motion.y / scaleY;
+					realMousePos.x = event.motion.x;
+					realMousePos.y = event.motion.y;
+				}
+			}
+			SDL_SetRenderDrawColor(renderer, BG_COLOR);
+			SDL_RenderClear(renderer);
+			for (int i = 0; i < ytg.hBoardTexts.size(); ++i) {
+				ytg.hBoardTexts[i].draw(renderer);
+			}
+			for (int i = 0; i < ytg.vBoardTexts.size(); ++i) {
+				ytg.vBoardTexts[i].draw(renderer);
+			}
+			for (int i = 0; i < ytg.board.size(); ++i) {
+				SDL_SetRenderDrawColor(renderer, ytg.board[i].c.r, ytg.board[i].c.g, ytg.board[i].c.b, ytg.board[i].c.a);
+				SDL_RenderFillRect(renderer, &ytg.board[i].r);
+				SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+				SDL_RenderDrawRect(renderer, &ytg.board[i].r);
+			}
+			ytg.text.draw(renderer);
+			SDL_RenderPresent(renderer);
+		}
+		else if (state == State::NotYoursTurnGameplay) {
 			SDL_Event event;
 			while (SDL_PollEvent(&event)) {
 				if (event.type == SDL_QUIT || event.type == SDL_KEYDOWN && event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
@@ -869,8 +1091,45 @@ int main(int argc, char* argv[])
 					realMousePos.y = event.motion.y;
 				}
 			}
+			send(socket, "isMyTurn");
+			std::string answer;
+			receive(socket, answer);
+			if (answer == "yourTurn") {
+				state = State::YourTurnGameplay;
+			}
+			else if (answer.size() >= 13 && answer.substr(0, 13) == "notYoursTurn ") {
+				nytg.board = board;
+				std::string indexes = answer.substr(13);
+				std::stringstream ss(indexes);
+				std::string index;
+				while (std::getline(ss, index, ' ')) {
+					int i = std::stoi(index);
+					if (nytg.board[i].c == SDL_Color({ 0,255,0 })) {
+						nytg.board[i].c = { 255,0,0 };
+					}
+					else {
+						nytg.board[i].c = { 255,255,255 };
+					}
+				}
+			}
+			else if (answer == "gameEnd") {
+				goto gameBegin;
+			}
 			SDL_SetRenderDrawColor(renderer, BG_COLOR);
 			SDL_RenderClear(renderer);
+			for (int i = 0; i < nytg.hBoardTexts.size(); ++i) {
+				nytg.hBoardTexts[i].draw(renderer);
+			}
+			for (int i = 0; i < nytg.vBoardTexts.size(); ++i) {
+				nytg.vBoardTexts[i].draw(renderer);
+			}
+			for (int i = 0; i < nytg.board.size(); ++i) {
+				SDL_SetRenderDrawColor(renderer, nytg.board[i].c.r, nytg.board[i].c.g, nytg.board[i].c.b, nytg.board[i].c.a);
+				SDL_RenderFillRect(renderer, &nytg.board[i].r);
+				SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+				SDL_RenderDrawRect(renderer, &nytg.board[i].r);
+			}
+			nytg.text.draw(renderer);
 			SDL_RenderPresent(renderer);
 		}
 	}
