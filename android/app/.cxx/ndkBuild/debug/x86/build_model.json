@@ -94,6 +94,7 @@
       "project": {
         "compilerSettingsCacheFolder": "C:\\home\\dev\\Ships\\android\\.cxx",
         "cxxFolder": "C:\\home\\dev\\Ships\\android\\.cxx",
+        "ideBuildTargetAbi": "x86",
         "isBuildOnlyTargetAbiEnabled": true,
         "isCmakeBuildCohabitationEnabled": false,
         "isNativeCompilerSettingsCacheEnabled": false,
@@ -116,10 +117,7 @@
     "objFolder": "C:\\home\\dev\\Ships\\android\\app\\build\\intermediates\\ndkBuild\\debug\\obj\\local",
     "variantName": "debug",
     "validAbiList": [
-      "ARMEABI_V7A",
-      "ARM64_V8A",
-      "X86",
-      "X86_64"
+      "X86"
     ]
   }
 }

@@ -1,4 +1,3 @@
-// TODO: Prevent hackers
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -458,6 +457,7 @@ void runServer()
 				SDLNet_TCP_AddSocket(socketSet, clients.back().socket);
 				clients.back().board.resize(100);
 				clients.back().opponentBoard.resize(100);
+				std::printf("Client joined!\n");
 			}
 			for (int i = 0; i < clients.size(); ++i) {
 				if (SDLNet_SocketReady(clients[i].socket)) {
@@ -484,7 +484,7 @@ void runServer()
 								for (int j = 0; j < clients.size(); ++j) {
 									if (j != i) {
 										if (clients[j].state == State::WaitForPlayer) {
-											clients[i].state = State::YourTurnGameplay;
+											clients[i].state = State::NotYoursTurnGameplay;
 											clients[i].gameId = genUniqueGameId(clients);
 											clients[i].opponentBoard = clients[j].board;
 											clients[j].state = State::YourTurnGameplay;
@@ -511,10 +511,10 @@ void runServer()
 						}
 						else if (msg.size() >= 6 && msg.substr(0, 6) == "pick: ") {
 							int index = std::stoi(msg.substr(6));
-							if (clients[i].opponentBoard[index].c == SDL_Color{ 0,255,0,0 }) {
+							if (clients[i].opponentBoard[index].c == SDL_Color({ 0,255,0,0 })) {
 								clients[i].opponentBoard[index].c = { 255,0,0 };
 							}
-							else {
+							else if (clients[i].opponentBoard[index].c == SDL_Color({ BG_COLOR })) {
 								clients[i].opponentBoard[index].c = { 255,255,255 };
 							}
 							int redCount = 0;
@@ -535,6 +535,7 @@ void runServer()
 								clients[i].opponentBoard.clear();
 								clients[i].board.resize(100);
 								clients[i].opponentBoard.resize(100);
+								clients[i].playerTurn = false;
 							}
 							else {
 								if (clients[i].opponentBoard[index].c == SDL_Color({ 255,0,0 })) {
@@ -614,7 +615,11 @@ int main(int argc, char* argv[])
 	serverThread.detach();
 #endif
 	IPaddress ip;
+#if 1
 	SDLNet_ResolveHost(&ip, "192.168.1.10", SERVER_PORT); // TODO: Set ip address to public one
+#else
+	SDLNet_ResolveHost(&ip, "ships.hopto.org", SERVER_PORT);
+#endif
 	TCPsocket socket = SDLNet_TCP_Open(&ip); // TODO: Error handling
 	SDL_GetMouseState(&mousePos.x, &mousePos.y);
 	SDL_Window* window = SDL_CreateWindow("Ships", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_RESIZABLE);
