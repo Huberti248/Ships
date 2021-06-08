@@ -1,1 +1,0 @@
-C:/home/dev/Ships/android/app/jni/src/../../../../main.cpp

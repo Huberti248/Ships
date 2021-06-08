@@ -401,6 +401,203 @@ struct NotYoursTurnGameplay {
 	Text text;
 };
 
+#if 0
+struct Packet {
+	typedef bool (Packet::* BoolType)(std::size_t);
+
+	void append(const void* data, std::size_t sizeInBytes)
+	{
+		if (data && (sizeInBytes > 0)) {
+			std::size_t start = m_data.size();
+			m_data.resize(start + sizeInBytes);
+			std::memcpy(&m_data[start], data, sizeInBytes);
+		}
+	}
+
+	bool checkSize(std::size_t size)
+	{
+		m_isValid = m_isValid && (m_readPos + size <= m_data.size());
+		return m_isValid;
+	}
+
+	operator BoolType() const
+	{
+		return m_isValid ? &Packet::checkSize : 0;
+	}
+
+	Packet& operator >>(bool& data)
+	{
+		Uint8 value;
+		if (*this >> value)
+			data = (value != 0);
+		return *this;
+	}
+
+	Packet& operator >>(i8& data)
+	{
+		if (checkSize(sizeof(data))) {
+			std::memcpy(&data, &m_data[m_readPos], sizeof(data));
+			m_readPos += sizeof(data);
+		}
+		return *this;
+	}
+
+	Packet& operator >>(u8& data)
+	{
+		if (checkSize(sizeof(data))) {
+			std::memcpy(&data, &m_data[m_readPos], sizeof(data));
+			m_readPos += sizeof(data);
+		}
+		return *this;
+	}
+
+	Packet& operator >>(i16& data)
+	{
+		if (checkSize(sizeof(data))) {
+			std::memcpy(&data, &m_data[m_readPos], sizeof(data));
+			data = std::ntohs(data);
+			m_readPos += sizeof(data);
+		}
+		return *this;
+	}
+
+	Packet& operator >>(u16& data)
+	{
+
+	}
+
+	Packet& operator >>(i32& data)
+	{
+
+	}
+
+	Packet& operator >>(u32& data)
+	{
+
+	}
+
+	Packet& operator >>(i64& data)
+	{
+
+	}
+
+	Packet& operator >>(u64& data)
+	{
+
+	}
+
+	Packet& operator >>(float& data)
+	{
+
+	}
+
+	Packet& operator >>(double& data)
+	{
+
+	}
+
+	Packet& operator >>(char* data)
+	{
+
+	}
+
+	Packet& operator >>(std::string& data)
+	{
+
+	}
+
+	Packet& operator >>(wchar_t* data)
+	{
+
+	}
+
+	Packet& operator >>(std::wstring& data)
+	{
+
+	}
+
+	Packet& operator <<(bool data)
+	{
+
+	}
+
+	Packet& operator <<(i8 data)
+	{
+
+	}
+
+	Packet& operator <<(u8 data)
+	{
+
+	}
+
+	Packet& operator <<(i16 data)
+	{
+
+	}
+
+	Packet& operator <<(u16 data)
+	{
+
+	}
+
+	Packet& operator <<(i32 data)
+	{
+
+	}
+
+	Packet& operator <<(u32 data)
+	{
+
+	}
+
+	Packet& operator <<(i64 data)
+	{
+
+	}
+
+	Packet& operator <<(u64 data)
+	{
+
+	}
+
+	Packet& operator <<(float data)
+	{
+
+	}
+
+	Packet& operator <<(double data)
+	{
+
+	}
+
+	Packet& operator <<(const char* data)
+	{
+
+	}
+
+	Packet& operator <<(const std::string& data)
+	{
+
+	}
+
+	Packet& operator <<(const wchar_t* data)
+	{
+
+	}
+
+	Packet& operator <<(const std::wstring& data)
+	{
+
+	}
+
+	std::vector<char> m_data;			//!< Data stored in the packet
+	std::size_t       m_readPos = 0;	//!< Current reading position in the packet
+	std::size_t       m_sendPos = 0;	//!< Current send position in the packet (for handling partial sends)
+	bool              m_isValid = true;	//!< Reading state of the packet
+};
+#endif
+
 struct Client {
 	TCPsocket socket = 0;
 	State state = State::ShipPlacement;
@@ -433,7 +630,6 @@ int send(TCPsocket socket, std::string msg)
 
 int receive(TCPsocket socket, std::string& msg)
 {
-	// TODO: Is it going to work properly ??? What will happen if I will send less than MAX_LENGTH characters?
 	char message[MAX_LENGTH]{};
 	int result = SDLNet_TCP_Recv(socket, message, MAX_LENGTH);
 	msg = message;
@@ -599,24 +795,19 @@ void runServer()
 
 int main(int argc, char* argv[])
 {
-	/*
-	TODO:
-	Attribute:
-	Freepik
-	*/
 	std::srand(std::time(0));
 	SDL_LogSetAllPriority(SDL_LOG_PRIORITY_VERBOSE);
 	SDL_LogSetOutputFunction(logOutputCallback, 0);
 	SDL_Init(SDL_INIT_EVERYTHING);
 	TTF_Init();
 	SDLNet_Init();
-#ifndef __ANDROID__
+#ifdef __ANDROID__
 	std::thread serverThread(runServer);
 	serverThread.detach();
 #endif
 	IPaddress ip;
-#if 1
-	SDLNet_ResolveHost(&ip, "192.168.1.10", SERVER_PORT); // TODO: Set ip address to public one
+#if 0
+	SDLNet_ResolveHost(&ip, "192.168.1.10", SERVER_PORT);
 #else
 	SDLNet_ResolveHost(&ip, "ships.hopto.org", SERVER_PORT);
 #endif
