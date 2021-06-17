@@ -399,6 +399,7 @@ struct NotYoursTurnGameplay {
 	std::vector<Text> hBoardTexts;
 	std::vector<Text> vBoardTexts;
 	Text text;
+	bool endTurn = false;
 };
 
 #if 0
@@ -606,6 +607,7 @@ struct Client {
 	std::vector<Cell> board;
 	std::vector<Cell> opponentBoard;
 	bool gameEnd = false;
+	int lastPickedCellIndex = 0;
 };
 
 int genUniqueGameId(const std::vector<Client>& clients)
@@ -707,9 +709,10 @@ void runServer()
 						}
 						else if (msg.size() >= 6 && msg.substr(0, 6) == "pick: ") {
 							int index = std::stoi(msg.substr(6));
+							clients[i].lastPickedCellIndex = index;
 							Cell cell;
 							for (int j = 0; j < clients.size(); ++j) {
-								if (i!=j&&clients[i].gameId==clients[j].gameId) 	{
+								if (i != j && clients[i].gameId == clients[j].gameId) {
 									cell = clients[j].board[index];
 								}
 							}
@@ -765,7 +768,13 @@ void runServer()
 								send(clients[i].socket, "gameEnd");
 							}
 							else if (clients[i].playerTurn) {
-								send(clients[i].socket, "yourTurn");
+								int lastPickedCellIndex;
+								for (int j = 0; j < clients.size(); ++j) {
+									if (i != j && clients[i].gameId == clients[j].gameId) {
+										lastPickedCellIndex = clients[j].lastPickedCellIndex;
+									}
+								}
+								send(clients[i].socket, "yourTurn " + std::to_string(lastPickedCellIndex));
 							}
 							else {
 								std::string indexes;
@@ -797,6 +806,14 @@ void runServer()
 			}
 		}
 	}
+}
+
+State state;
+
+Uint32 endTurnCallback(Uint32 interval, void* param)
+{
+	state = State::YourTurnGameplay;
+	return 0;
 }
 
 int main(int argc, char* argv[])
@@ -831,7 +848,7 @@ int main(int argc, char* argv[])
 	SDL_AddEventWatch(eventWatch, 0);
 	bool running = true;
 gameBegin:
-	State state = State::ShipPlacement;
+	state = State::ShipPlacement;
 	std::vector<Text> hBoardTexts;
 	std::vector<Text> vBoardTexts;
 	std::vector<Cell> board;
@@ -1231,6 +1248,7 @@ gameBegin:
 							else if (answer == "miss") {
 								ytg.board[i].c = { 255,255,255,0 };
 								state = State::NotYoursTurnGameplay;
+								nytg.endTurn = false;
 							}
 							break;
 						}
@@ -1296,18 +1314,12 @@ gameBegin:
 					realMousePos.y = event.motion.y;
 				}
 			}
-			send(socket, "isMyTurn");
-			std::string answer;
-			receive(socket, answer);
-			if (answer == "yourTurn") {
-				state = State::YourTurnGameplay;
-			}
-			else if (answer.size() >= 13 && answer.substr(0, 13) == "notYoursTurn ") {
-				nytg.board = board;
-				std::string indexes = answer.substr(13);
-				std::stringstream ss(indexes);
-				std::string index;
-				while (std::getline(ss, index, ' ')) {
+			if (!nytg.endTurn) {
+				send(socket, "isMyTurn");
+				std::string answer;
+				receive(socket, answer);
+				if (answer.size() >= 9 && answer.substr(0, 9) == "yourTurn ") {
+					std::string index = answer.substr(9);
 					int i = std::stoi(index);
 					if (nytg.board[i].c == SDL_Color({ 0,255,0 })) {
 						nytg.board[i].c = { 255,0,0 };
@@ -1315,10 +1327,27 @@ gameBegin:
 					else {
 						nytg.board[i].c = { 255,255,255 };
 					}
+					nytg.endTurn = true;
+					SDL_AddTimer(1000, endTurnCallback, 0);
 				}
-			}
-			else if (answer == "gameEnd") {
-				goto gameBegin;
+				else if (answer.size() >= 13 && answer.substr(0, 13) == "notYoursTurn ") {
+					nytg.board = board;
+					std::string indexes = answer.substr(13);
+					std::stringstream ss(indexes);
+					std::string index;
+					while (std::getline(ss, index, ' ')) {
+						int i = std::stoi(index);
+						if (nytg.board[i].c == SDL_Color({ 0,255,0 })) {
+							nytg.board[i].c = { 255,0,0 };
+						}
+						else {
+							nytg.board[i].c = { 255,255,255 };
+						}
+					}
+				}
+				else if (answer == "gameEnd") {
+					goto gameBegin;
+				}
 			}
 			SDL_SetRenderDrawColor(renderer, BG_COLOR);
 			SDL_RenderClear(renderer);
