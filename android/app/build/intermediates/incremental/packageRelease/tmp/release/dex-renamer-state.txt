@@ -1,4 +1,4 @@
-#Tue Jun 08 13:16:05 CEST 2021
+#Sat Jun 12 15:52:50 CEST 2021
 base.0=C\:\\home\\dev\\Ships\\android\\app\\build\\intermediates\\dex\\release\\out\\classes.dex
 renamed.0=classes.dex
 path.0=classes.dex

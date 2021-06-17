@@ -41,6 +41,7 @@
       <sourceFolder url="file://$MODULE_DIR$/../../../app/src/main/res" type="java-resource" />
       <sourceFolder url="file://$MODULE_DIR$/../../../app/build/generated/ap_generated_sources/debug/out" isTestSource="false" generated="true" />
       <sourceFolder url="file://$MODULE_DIR$/../../../app/build/generated/source/buildConfig/debug" isTestSource="false" generated="true" />
+      <sourceFolder url="file://$MODULE_DIR$/../../../app/jni" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/../../../app/jni" />
       <excludeFolder url="file://$MODULE_DIR$/../../../app/.cxx" />
       <excludeFolder url="file://$MODULE_DIR$/../../../app/.externalNativeBuild" />
@@ -48,6 +49,7 @@
       <excludeFolder url="file://$MODULE_DIR$/../../../app/build" />
     </content>
     <content url="file://$MODULE_DIR$/../../../../vendor/PUGIXML/src">
+      <sourceFolder url="file://$MODULE_DIR$/../../../../vendor/PUGIXML/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/../../../../vendor/PUGIXML/src" />
     </content>
     <orderEntry type="jdk" jdkName="Android API 29 Platform" jdkType="Android SDK" />

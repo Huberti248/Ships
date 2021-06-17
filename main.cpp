@@ -682,10 +682,10 @@ void runServer()
 										if (clients[j].state == State::WaitForPlayer) {
 											clients[i].state = State::NotYoursTurnGameplay;
 											clients[i].gameId = genUniqueGameId(clients);
-											clients[i].opponentBoard = clients[j].board;
+											clients[i].opponentBoard.resize(clients[j].board.size());
 											clients[j].state = State::YourTurnGameplay;
 											clients[j].gameId = clients[i].gameId;
-											clients[j].opponentBoard = clients[i].board;
+											clients[j].opponentBoard.resize(clients[i].board.size());
 											send(clients[i].socket, "Gameplay");
 											found = true;
 											break;
@@ -707,10 +707,16 @@ void runServer()
 						}
 						else if (msg.size() >= 6 && msg.substr(0, 6) == "pick: ") {
 							int index = std::stoi(msg.substr(6));
-							if (clients[i].opponentBoard[index].c == SDL_Color({ 0,255,0,0 })) {
+							Cell cell;
+							for (int j = 0; j < clients.size(); ++j) {
+								if (i!=j&&clients[i].gameId==clients[j].gameId) 	{
+									cell = clients[j].board[index];
+								}
+							}
+							if (cell.c == SDL_Color({ 0,255,0,0 })) {
 								clients[i].opponentBoard[index].c = { 255,0,0 };
 							}
-							else if (clients[i].opponentBoard[index].c == SDL_Color({ BG_COLOR })) {
+							else if (cell.c == SDL_Color({ BG_COLOR })) {
 								clients[i].opponentBoard[index].c = { 255,255,255 };
 							}
 							int redCount = 0;
@@ -802,6 +808,9 @@ int main(int argc, char* argv[])
 	TTF_Init();
 	SDLNet_Init();
 #ifdef __ANDROID__
+	std::thread serverThread(runServer);
+	serverThread.detach();
+#elif 0
 	std::thread serverThread(runServer);
 	serverThread.detach();
 #endif

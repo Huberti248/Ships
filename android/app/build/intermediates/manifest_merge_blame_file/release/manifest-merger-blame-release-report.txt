@@ -6,7 +6,7 @@
 6<manifest xmlns:android="http://schemas.android.com/apk/res/android"
 7    package="com.huberti.ships"
 8    android:installLocation="auto"
-9    android:versionCode="1"
+9    android:versionCode="2"
 10    android:versionName="1.0" >
 11
 12    <uses-sdk
