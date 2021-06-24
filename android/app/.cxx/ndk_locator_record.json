@@ -27,6 +27,10 @@
     },
     {
       "level": "INFO",
+      "message": "Considering C:\\Users\\Hubert\\AppData\\Local\\Android\\Sdk\\ndk\\17.2.4988734 in SDK ndk folder"
+    },
+    {
+      "level": "INFO",
       "message": "Considering C:\\Users\\Hubert\\AppData\\Local\\Android\\Sdk\\ndk\\20.0.5594570 in SDK ndk folder"
     },
     {

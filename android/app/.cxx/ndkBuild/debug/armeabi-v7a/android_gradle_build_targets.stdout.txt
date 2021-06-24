@@ -4,5 +4,6 @@ make: Nothing to be done for `SDL2_mixer'.
 make: Nothing to be done for `SDL2_net'.
 make: Nothing to be done for `SDL2_ttf'.
 make: Nothing to be done for `hidapi'.
-make: Nothing to be done for `main'.
+[armeabi-v7a] Compile++ thumb: main <= main.cpp
+[armeabi-v7a] SharedLibrary  : libmain.so
 make: Nothing to be done for `mpg123'.
