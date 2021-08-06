@@ -12,7 +12,7 @@ INJECTED from C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:5:1-92:
 		INJECTED from C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml
 		INJECTED from C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml
 	android:versionName
-		ADDED from C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:8:5-30
+		ADDED from C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml:8:5-32
 		INJECTED from C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml
 		INJECTED from C:\home\dev\Ships\android\app\src\main\AndroidManifest.xml
 	xmlns:android

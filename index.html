@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <title>Sender</title>
+    <style>
+        html,
+        body {
+            background-image: url("worldMap.jpg");
+            background-size: cover;
+        }
+
+        #header {
+            font-size: 48px;
+        }
+
+        #content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #downloadBtn {
+            background-color: DodgerBlue;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 20px;
+            border-radius: 15px;
+            margin-bottom: 5px;
+            padding: 15px;
+            width: 15%;
+            text-align: center;
+            font-size: 30px;
+        }
+
+        #sourceCodeBtn {
+            background-color: rgb(133, 208, 255);
+            border-radius: 15px;
+            padding: 15px;
+            width: 15%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="header">Sender</div>
+    <div id="content">
+        <video width="100%" autoplay muted loop style="width: 60%; margin-bottom: 5px; opacity: 0.9;">
+            <source src="Sender.mp4" type="video/mp4">
+        </video>
+        <div id="downloadBtn">Download</div>
+        <a href="https://github.com/huberti1/Sender" id="sourceCodeBtn">
+            <i class="fa fa-github" style="font-size:36px"> Source code</i>
+        </a>
+    </div>
+
+</body>
+
+</html>

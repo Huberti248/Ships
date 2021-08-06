@@ -1,5 +1,5 @@
 #define MyAppName "Ships"
-#define MyAppVersion "1.0"
+#define MyAppVersion "1.2.1"
 #define MyAppExeName "Ships.exe"
 
 [Setup]
@@ -34,10 +34,10 @@ Source: "res\*"; DestDir: "{app}\res"; Flags: ignoreversion recursesubdirs creat
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+;Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait
 
 [Code]
 #ifdef UNICODE

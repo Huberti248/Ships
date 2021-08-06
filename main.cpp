@@ -52,6 +52,8 @@ using namespace std::chrono_literals;
 //360 x 640 (Galaxy S5)
 //640 x 480 (480i - Smallest PC monitor)
 
+// TODO: There's a bug - sometimes it shows white cell in left up corner after timeout (event that the player didn't make any move)
+
 #define BG_COLOR 100, 100, 100, 0
 #define FIGURE_COLOR 0, 255, 0, 0
 #define CELL_SIZE 16
@@ -639,7 +641,7 @@ std::vector<Client> clients;
 
 Uint32 timeoutCallback(Uint32 interval, void* param)
 {
-    int index = (int)(param);
+    int index = (int)(std::size_t)(param);
     clientsMutex.lock();
     clients[index].playerTurn = !clients[index].playerTurn;
     for (int i = 0; i < clients.size(); ++i) {
@@ -655,7 +657,7 @@ Uint32 timeoutCallback(Uint32 interval, void* param)
 void runServer()
 {
     IPaddress ip;
-    SDLNet_ResolveHost(&ip, 0, SERVER_PORT); // TODO: What to do if this port is already used ???
+    SDLNet_ResolveHost(&ip, 0, SERVER_PORT);
     TCPsocket serverSocket = SDLNet_TCP_Open(&ip);
     SDLNet_SocketSet socketSet = SDLNet_AllocSocketSet(MAX_SOCKETS + 1); // TODO: Do something when the server is full
     SDLNet_TCP_AddSocket(socketSet, serverSocket);
@@ -872,7 +874,7 @@ int main(int argc, char* argv[])
 #if 0
     SDLNet_ResolveHost(&ip, "192.168.1.10", SERVER_PORT);
 #else
-    SDLNet_ResolveHost(&ip, "ships.hopto.org", SERVER_PORT);
+    SDLNet_ResolveHost(&ip, "ships.freeddns.org", SERVER_PORT);
 #endif
     TCPsocket socket = SDLNet_TCP_Open(&ip); // TODO: Error handling
     SDL_GetMouseState(&mousePos.x, &mousePos.y);
