@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-178CJHR55N"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+
+        function gtag() {
+            dataLayer.push(arguments);
+        }
+        gtag('js', new Date());
+
+        gtag('config', 'G-178CJHR55N');
+    </script>
+    <title>Sender</title>
+    <style>
+        html,
+        body {
+            background-image: url("ships.jpg");
+            background-size: cover;
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+
+        #header {
+            font-size: 48px;
+        }
+
+        #content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            height: 85%;
+        }
+
+        #downloadBtn {
+            background-color: DodgerBlue;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 20px;
+            border-radius: 15px;
+            margin-bottom: 5px;
+            padding: 15px;
+            min-width: 20%;
+            text-align: center;
+            font-size: 30px;
+        }
+
+        #sourceCodeBtn {
+            background-color: rgb(133, 208, 255);
+            border-radius: 15px;
+            padding: 15px;
+            min-width: 20%;
+            text-align: center;
+        }
+
+        #trailer {
+            width: 100%;
+            height: 100%;
+            margin-bottom: 5px;
+            opacity: 0.9;
+        }
+
+        .btn {
+            width: 33%;
+            height: 150px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .btn2 {
+            width: 33%;
+            height: 50px;
+        }
+
+        @media (min-width: 768px) {
+            #header {
+                padding: 25px 10px 10px 80px;
+            }
+
+            #trailer {
+                width: 60%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="header">
+        Ships
+    </div>
+    <div id="content">
+        <iframe id="trailer" src="https://youtube.com/embed/PXW-qas7GEo?autoplay=1&mute=1&playlist=PXW-qas7GEo&loop=1">
+        </iframe>
+        <a href="https://github.com/huberti1/Ships" id="sourceCodeBtn">
+            <i class="fa fa-github" style="font-size:36px; text-align: center;"> Source code</i>
+        </a>
+    </div>
+
+</body>
+
+</html>
